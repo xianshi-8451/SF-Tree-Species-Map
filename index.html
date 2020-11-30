@@ -1,0 +1,212 @@
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <link href="https://fonts.googleapis.com/css?family=Lato:400,700|Raleway:400,700" rel="stylesheet">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/styles/default.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/highlight.min.js"></script>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/topojson.v2.min.js"></script>
+  <style>
+
+  .neighborhood {
+    fill: #EEE;
+    stroke: white;
+    stroke-width: 2px;
+  }
+
+  </style>
+</head>
+<body>
+	<svg id="points" height="900" width="900" style="background: #fff; margin-top:50px" >
+
+  </svg>
+  
+	<script>
+
+  const svg = d3.select("#points");
+  const width = svg.attr("width");
+  const height = svg.attr("height");
+  const margin = { top: 20, right: 20, bottom: 20, left:20};
+  const mapWidth = width - margin.left - margin.right;
+  const mapHeight = height - margin.top - margin.bottom;
+  const map = svg.append("g")
+                  .attr("transform","translate("+margin.left+","+margin.top+")");
+
+	const requestData = async function(){
+	const sf = await d3.json("datasets/SF-Neighborhoods.geo.json");
+	var neighborhoods = topojson.feature(sf, sf.objects.SFNeighborhoods);
+	var projection = d3.geoMercator().fitSize([mapWidth, mapHeight], neighborhoods);
+  var path = d3.geoPath().projection(projection);
+    map.selectAll("path.neighborhood").data(neighborhoods.features)
+       .join("path")
+       .attr("class", "neighborhood")
+       .attr("d", path);
+      
+      let dataArr = [];
+      let sortable = [];
+      let sorted = [];
+	 	  const data = await d3.csv("datasets/Street_Tree_List-2020-08-20_FILTERED.csv", d3.autoType)
+	 		data.forEach(function(item) {
+             var Species = item["qSpecies"].split("::")[0];
+             var temp = {
+                 "ID": Number(item["TreeID"]),
+                 "Species": Species,
+                 "Latitude": Number(item['Latitude']),
+                 "Longitude": Number(item['Longitude'])
+             }
+             dataArr.push(temp);
+         });
+
+    
+        sortable = getTop10Trees(dataArr);
+
+        console.log(sortable);
+        for(i=0; i<sortable.length; i++){
+          for(j=0;j<dataArr.length; j++){
+            if(sortable[i][0]==dataArr[j]['Species']){
+              sorted.push(dataArr[j]);
+            };
+          };
+        }
+        console.log(sorted);
+        sorted.forEach( d => {
+      
+      d.Position = projection( [d.Longitude, d.Latitude] );
+  
+    });
+        const colorScale=d3.scaleOrdinal(d3.schemeCategory10);
+        
+     		 map.selectAll("circle").data(sorted)
+       			.join("circle")
+       			.attr("r", 2)
+       			.attr("fill", d => colorScale(d['Species']))
+       			.attr("opacity", 0.4)
+       			.attr("cx", d => d.Position[0])
+       			.attr("cy", d => d.Position[1]);
+
+        
+        let legend = svg.append("rect")
+            .attr("height", 170)
+            .attr("width", 170)
+            .attr("fill","none")
+            .attr("stroke","black")
+            .attr('transform', 'translate(10,0)');
+    
+        svg.append("text")
+            .attr("x", 37)
+            .attr("y", 10)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-weight","bold")
+            .text("Top 5 Tree Species");
+    
+        svg.append("circle")
+            .attr("r", 4)
+            .attr("cx", 40)
+            .attr("cy", 46)
+            .attr("dy", "1em")
+            .attr("fill",colorScale("Platanus x hispanica "))
+    
+        svg.append("circle")
+            .attr("r", 4)
+            .attr("cx", 40)
+            .attr("cy", 70)
+            .attr("dy", "1em")
+            .attr("fill",colorScale("Metrosideros excelsa "))
+
+        svg.append("circle")
+            .attr("r", 4)
+            .attr("cx", 40)
+            .attr("cy", 94)
+            .attr("dy", "1em")
+            .attr("fill",colorScale("Lophostemon confertus "))
+
+        svg.append("circle")
+            .attr("r", 4)
+            .attr("cx", 40)
+            .attr("cy", 118)
+            .attr("dy", "1em")
+            .attr("fill",colorScale("Tristaniopsis laurina "))
+
+        svg.append("circle")
+            .attr("r", 4)
+            .attr("cx", 40)
+            .attr("cy", 142)
+            .attr("dy", "1em")
+            .attr("fill",colorScale("Pittosporum undulatum "))
+    
+        svg.append("text")
+            .attr("x", 60)
+            .attr("y", 39)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-size",11)
+            .text("Yarwood");
+    
+        svg.append("text")
+            .attr("x", 60)
+            .attr("y", 63)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-size",11)
+            .text("Aurea");
+        svg.append("text")
+            .attr("x", 60)
+            .attr("y", 86)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-size",11)
+            .text("Brisbane Box");
+        svg.append("text")
+            .attr("x", 60)
+            .attr("y", 111)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-size",11)
+            .text("Elegant");
+        svg.append("text")
+            .attr("x", 60)
+            .attr("y", 134)
+            .attr("dy", "1em")
+            .attr("color","black")
+            .style("font-size",11)
+            .text("Victorian Box ");
+}
+  
+       
+requestData();
+function getTop10Trees(treeData){
+  let TreeFreq ={};
+  var sortable=[];
+  for(var i = 0; i<treeData.length; i++){
+    var Species = treeData[i]["Species"];
+    if(Species in TreeFreq){
+      TreeFreq[Species]+=1;
+    }else{
+      TreeFreq[Species]=1;
+    }
+
+  };
+  for (var Species in TreeFreq) {
+    sortable.push([Species, TreeFreq[Species]]);
+}
+
+  sortable.sort(function(a, b) {
+    return b[1] - a[1];
+});
+sortable = sortable.slice(0,5);
+return sortable;
+}
+function getTop10TreesData(sortedArr, dataArr){
+  sortedArr.forEach(d=>{
+    let speciesname = d[0];
+    onlythisSpecies = dataArr.filter(e=>e.Species===speciesname);
+    d.push(onlythisSpecies);
+  });
+  return sortedArr;
+}
+
+ 
+	</script>
+</body>
+</html>
